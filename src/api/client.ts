@@ -15,7 +15,7 @@ export const setUnauthorizedHandler = (fn: () => void) => { onUnauthorized = fn;
 type Query = Record<string, string | number | boolean | undefined | null | string[]>;
 
 function buildUrl(path: string, query?: Query) {
-  const url = new URL(`http://11.23.82.137:8000/api/v1${path}`);
+  const url = new URL(`https://custodian-reshoot-quality.ngrok-free.dev/api/v1${path}`);
   Object.entries(query ?? {}).forEach(([k, v]) => {
     if (v === undefined || v === null || v === "") return;
     if (Array.isArray(v)) v.forEach((item) => url.searchParams.append(k, item));
