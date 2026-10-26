@@ -15,7 +15,7 @@ export const setUnauthorizedHandler = (fn: () => void) => { onUnauthorized = fn;
 type Query = Record<string, string | number | boolean | undefined | null | string[]>;
 
 function buildUrl(path: string, query?: Query) {
-  const url = new URL(`/api/v1${path}`, window.location.origin);
+  const url = new URL(`11.23.82.137/api/v1${path}`, window.location.origin);
   Object.entries(query ?? {}).forEach(([k, v]) => {
     if (v === undefined || v === null || v === "") return;
     if (Array.isArray(v)) v.forEach((item) => url.searchParams.append(k, item));
