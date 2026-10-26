@@ -15,7 +15,7 @@ export const setUnauthorizedHandler = (fn: () => void) => { onUnauthorized = fn;
 type Query = Record<string, string | number | boolean | undefined | null | string[]>;
 
 function buildUrl(path: string, query?: Query) {
-  const url = new URL(`https://custodian-reshoot-quality.ngrok-free.dev/api/v1${path}`);
+  const url = new URL(`https://attend-plus-fe.vercel.app/api/v1${path}`);
   Object.entries(query ?? {}).forEach(([k, v]) => {
     if (v === undefined || v === null || v === "") return;
     if (Array.isArray(v)) v.forEach((item) => url.searchParams.append(k, item));
@@ -37,34 +37,104 @@ export function refreshSession(): Promise<boolean> {
 
 const NO_REFRESH = new Set(["/auth/login", "/auth/refresh", "/auth/logout"]);
 
-async function request<T>(method: string, path: string, opts: { body?: unknown; query?: Query; form?: FormData } = {}, retried = false): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  opts: {
+    body?: unknown;
+    query?: Query;
+    form?: FormData;
+  } = {},
+  retried = false,
+): Promise<T> {
   const headers: Record<string, string> = { ...CSRF_HEADERS };
-  if (opts.body !== undefined) headers["Content-Type"] = "application/json";
+
+  if (opts.body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
 
   let res: Response;
+
   try {
     res = await fetch(buildUrl(path, opts.query), {
       method,
       headers,
-      credentials: "same-origin",
-      body: opts.form ?? (opts.body !== undefined ? JSON.stringify(opts.body) : undefined),
+      credentials: "include",
+      body:
+        opts.form ??
+        (opts.body !== undefined
+          ? JSON.stringify(opts.body)
+          : undefined),
     });
   } catch {
-    throw new ApiError("NETWORK", "서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.", 0);
+    throw new ApiError(
+      "NETWORK",
+      "서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.",
+      0,
+    );
   }
 
-  let payload: { isSuccess?: boolean; code?: string; message?: string; result?: T } = {};
-  try { payload = await res.json(); } catch { /* empty body */ }
+  let payload: {
+    isSuccess?: boolean;
+    code?: string;
+    message?: string;
+    result?: T;
+  } = {};
+
+  try {
+    payload = await res.json();
+  } catch {
+    // 응답 본문이 비어 있거나 JSON 형식이 아닌 경우
+  }
 
   if (!res.ok || payload.isSuccess === false) {
     if (res.status === 401 && !NO_REFRESH.has(path)) {
-      if (!retried && await refreshSession()) return request<T>(method, path, opts, true);
+      if (!retried && await refreshSession()) {
+        return request<T>(method, path, opts, true);
+      }
+
       onUnauthorized?.();
     }
-    throw new ApiError(payload.code ?? String(res.status), payload.message ?? "요청을 처리하지 못했습니다.", res.status);
+
+    throw new ApiError(
+      payload.code ?? String(res.status),
+      payload.message ?? "요청을 처리하지 못했습니다.",
+      res.status,
+    );
   }
+
   return payload.result as T;
 }
+
+
+// async function request<T>(method: string, path: string, opts: { body?: unknown; query?: Query; form?: FormData } = {}, retried = false): Promise<T> {
+//   const headers: Record<string, string> = { ...CSRF_HEADERS };
+//   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
+
+//   let res: Response;
+//   try {
+//     res = await fetch(buildUrl(path, opts.query), {
+//       method,
+//       headers,
+//       credentials: "same-origin",
+//       body: opts.form ?? (opts.body !== undefined ? JSON.stringify(opts.body) : undefined),
+//     });
+//   } catch {
+//     throw new ApiError("NETWORK", "서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.", 0);
+//   }
+
+//   let payload: { isSuccess?: boolean; code?: string; message?: string; result?: T } = {};
+//   try { payload = await res.json(); } catch { /* empty body */ }
+
+//   if (!res.ok || payload.isSuccess === false) {
+//     if (res.status === 401 && !NO_REFRESH.has(path)) {
+//       if (!retried && await refreshSession()) return request<T>(method, path, opts, true);
+//       onUnauthorized?.();
+//     }
+//     throw new ApiError(payload.code ?? String(res.status), payload.message ?? "요청을 처리하지 못했습니다.", res.status);
+//   }
+//   return payload.result as T;
+// }
 
 export const api = {
   get: <T>(path: string, query?: Query) => request<T>("GET", path, { query }),
